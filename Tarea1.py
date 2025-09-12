@@ -395,166 +395,163 @@ ambiguedades(df)
 
 #=================  MANEJO DE DATOS FALTANTES ==========================
 # =========================================================
-# preparación (normaliza nombres de columnas)
 
-def normalizar_nombres(df: pd.DataFrame) -> pd.DataFrame:
-    copia = df.copy()
-    copia.columns = (copia.columns
-                     .str.replace(r"\s+", " ", regex=True)
-                     .str.strip()
-                     .str.upper())
-    return copia
+# Opcional (solo para el mapa de faltantes al inicio/fin):
+import seaborn as sns
 
-def _detectar_columnas(df: pd.DataFrame, col_anio: str = "AÑO"):
-    cols = list(df.columns)
-    if col_anio not in cols and "YEAR CE" in cols:
-        col_anio = "YEAR CE"
-    if col_anio not in df.columns:
-        col_anio = df.columns[0]
-    sitios = [c for c in df.columns if c != col_anio]
-    return col_anio, sitios
-
-def _forzar_numerico(df: pd.DataFrame, columnas):
-    copia = df.copy()
-    for c in columnas:
-        copia[c] = pd.to_numeric(copia[c], errors="coerce")
-    return copia
-
-# ============================================
-# 1) Estrategia 1 — Interpolación lineal simple
-# ============================================
-def imputar_interpolacion(df: pd.DataFrame, col_anio: str = "AÑO", limit_area: str = "inside"):
-    col_anio, sitios = _detectar_columnas(df, col_anio)
-    base = _forzar_numerico(df, [col_anio] + sitios).sort_values(col_anio).reset_index(drop=True)
-    na_inicial = base[sitios].isna()
-
-    salida = base.copy()
-    for s in sitios:
-        salida[s] = salida[s].interpolate(method="linear", limit_area=limit_area)
-
-    mascara = na_inicial & salida[sitios].notna()
-    return salida, mascara
-
-# ==============================================================
-# 2) Estrategia B — Máxima verosimilitud Normal (regresión t,t^2)
-# ==============================================================
-def imputar_mle_normal(df: pd.DataFrame, col_anio: str = "AÑO"):
-    col_anio, sitios = _detectar_columnas(df, col_anio)
-    base = _forzar_numerico(df, [col_anio] + sitios).sort_values(col_anio).reset_index(drop=True)
-
-    t = base[col_anio].astype(float).to_numpy()
-    X = np.c_[np.ones_like(t), t, t**2]  # diseño cuadrático
-
-    salida = base.copy()
-    na_inicial = base[sitios].isna()
-
-    for s in sitios:
-        y = salida[s].to_numpy(dtype=float)
-        obs = ~np.isnan(y)
-        if obs.sum() < 3:
-            continue
-        beta, *_ = np.linalg.lstsq(X[obs], y[obs], rcond=None)
-        yhat = X @ beta
-        y[~obs] = yhat[~obs]   # media MLE
-        salida[s] = y
-
-    mascara = na_inicial & salida[sitios].notna()
-    return salida, mascara
-
-# =================================
-# 3) Métrica y visualizaciones 
-# =================================
-def porcentaje_imputado(mascara_imp: pd.DataFrame) -> pd.Series:
-    return (mascara_imp.sum() / mascara_imp.shape[0] * 100).sort_values(ascending=False)
-
-def histogramas_comparativos(df_original: pd.DataFrame,
-                             df_A: pd.DataFrame, df_B: pd.DataFrame,
-                             sitios: list, col_anio: str = "AÑO",
-                             etiqueta_A: str = "Interpolación",
-                             etiqueta_B: str = "MLE Normal",
-                             bins: int = 30):
-    """
-    Para cada sitio seleccionado dibuja:
-      - Fila 1: Original vs Interpolación
-      - Fila 2: Original vs MLE Normal
-    """
-    n = len(sitios)
-    ncols = min(4, n)
-    nrows = 2
-    fig, axes = plt.subplots(nrows, ncols, figsize=(4.5*ncols, 7), squeeze=False)
-
-    for i, sitio in enumerate(sitios[:ncols]):
-        # Original vs Interpolación
-        ax = axes[0, i]
-        ax.hist(pd.to_numeric(df_original[sitio], errors="coerce").dropna(), bins=bins, alpha=0.5, label="Original")
-        ax.hist(pd.to_numeric(df_A[sitio], errors="coerce"), bins=bins, alpha=0.5, label=etiqueta_A)
-        ax.set_title(f"{sitio} (Original vs {etiqueta_A})", fontsize=10)
-        ax.legend(fontsize=8)
-
-        # Original vs MLE
-        ax2 = axes[1, i]
-        ax2.hist(pd.to_numeric(df_original[sitio], errors="coerce").dropna(), bins=bins, alpha=0.5, label="Original")
-        ax2.hist(pd.to_numeric(df_B[sitio], errors="coerce"), bins=bins, alpha=0.5, label=etiqueta_B)
-        ax2.set_title(f"{sitio} (Original vs {etiqueta_B})", fontsize=10)
-        ax2.legend(fontsize=8)
-
-    plt.tight_layout()
-    plt.show()
-
-def barras_porcentaje_imputado(pct_A: pd.Series, pct_B: pd.Series,
-                               titulo_A="Interpolación", titulo_B="MLE Normal"):
-    """Barras comparativas del % imputado por sitio para cada estrategia (top 12)."""
-    topA = pct_A.head(12)
-    topB = pct_B.head(12)
-
-    fig, axes = plt.subplots(1, 2, figsize=(14, 4), sharey=True)
-    axes[0].bar(topA.index, topA.values, alpha=0.8)
-    axes[0].set_title(f"% imputado por sitio — {titulo_A}")
-    axes[0].set_ylabel("%")
-    axes[0].tick_params(axis='x', rotation=45)
-
-    axes[1].bar(topB.index, topB.values, alpha=0.8, color="tab:orange")
-    axes[1].set_title(f"% imputado por sitio — {titulo_B}")
-    axes[1].tick_params(axis='x', rotation=45)
-
-    plt.tight_layout()
-    plt.show()
+# Modelos de espacio de estados:
+from statsmodels.tsa.statespace.structural import UnobservedComponents
+from statsmodels.tools.sm_exceptions import ConvergenceWarning
+import warnings
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 
+#indexar por Año
+df_t = df_data.copy()
+if df_t.columns[0].lower() in ["año", "ano", "year"]:
+    df_t = df_t.rename(columns={df_t.columns[0]: "Año"})
+df_t = df_t.set_index("Año").sort_index()
 
-# Normaliza nombres
-df_norm = normalizar_nombres(df_data)
-col_anio, sitios = _detectar_columnas(df_norm, "AÑO")
 
-#  Aplica cada estrategia 
-df_interp, mascara_interp = imputar_interpolacion(df_norm, col_anio="AÑO", limit_area="inside")
-df_mle,    mascara_mle    = imputar_mle_normal(df_norm,    col_anio="AÑO")
+# 1) Exploración inicial de faltantes (opcional visual)
 
-#  % imputado por sitio (para tablas/figuras)
-pct_interp = porcentaje_imputado(mascara_interp).round(1)
-pct_mle    = porcentaje_imputado(mascara_mle).round(1)
-print("Interpolación (% imputado):\n", pct_interp)
-print("\nMLE Normal   (% imputado):\n", pct_mle)
+print("Porcentaje de faltantes por sitio (%)")
+print((df_t.isna().mean()*100).sort_values())
 
-barras_porcentaje_imputado(pct_interp, pct_mle)
+plt.figure(figsize=(12, 4))
+sns.heatmap(df_t.isna(), cbar=False)
+plt.title("Mapa de faltantes por sitio y año (NaN)")
+plt.xlabel("Sitio"); plt.ylabel("Año")
+plt.tight_layout(); plt.show()
 
-#  Selección de sitios a graficar (los mejor cubiertos para que los histogramas sean informativos)
-conteo_no_na = df_norm[sitios].notna().sum().sort_values(ascending=False)
-sitios_top = conteo_no_na.head(4).index.tolist()  # cambia 4 por el número que quieras mostrar
+# 1) Estrategia 1: Eliminación por período común (sin AHI)
+#    - Excluye AHI del cálculo del período común
+#    - Fuerza a empezar en 1900
 
-# Histogramas comparativos (tipo profe, pero con nuestras estrategias)
-histogramas_comparativos(df_norm, df_interp, df_mle, sitios_top, col_anio="AÑO")
+START_YEAR = 1900
+EXCLUDE_FOR_COMMON = ["AHI"]
 
-#   Histograma global (todas las columnas apiladas)
-def histograma_global(df, titulo, bins=40):
-    vals = pd.to_numeric(df[[c for c in df.columns if c not in ("AÑO","YEAR CE")]].values.ravel(), errors="coerce")
-    vals = pd.Series(vals).dropna()
-    plt.figure(figsize=(6,4))
-    plt.hist(vals, bins=bins, alpha=0.8)
-    plt.title(titulo); plt.xlabel("δ13C (‰ vs VPDB)"); plt.ylabel("Frecuencia")
-    plt.tight_layout(); plt.show()
+def periodo_comun(df, start_year=START_YEAR, exclude_cols=None):
+    cols = df.columns.tolist()
+    if exclude_cols:
+        cols = [c for c in cols if c not in set(exclude_cols)]
+    # recorta a partir de start_year
+    df_recent = df.loc[df.index >= start_year, cols]
+    # primer y último año válido por columna
+    first_valid = df_recent.apply(lambda s: s.first_valid_index())
+    last_valid  = df_recent.apply(lambda s: s.last_valid_index())
+    # inicio = máximo de inicios; fin = mínimo de finales
+    start = first_valid.max()
+    end   = last_valid.min()
+    if pd.isna(start) or pd.isna(end) or start > end:
+        return None, None, df_recent.columns.tolist()
+    return int(start), int(end), df_recent.columns.tolist()
 
-histograma_global(df_norm, "Original (todas las series)")
-histograma_global(df_interp, "Imputación por Interpolación (todas las series)")
-histograma_global(df_mle,    "Imputación por MLE Normal (todas las series)")
+anio_ini, anio_fin, cols_common = periodo_comun(df_t, START_YEAR, EXCLUDE_FOR_COMMON)
+print(f"Período común SIN {EXCLUDE_FOR_COMMON}, desde {START_YEAR}: {anio_ini}–{anio_fin}")
+
+if anio_ini is None:
+    df_common = pd.DataFrame(index=df_t.index, columns=cols_common)
+else:
+    df_common = df_t.loc[anio_ini:anio_fin, cols_common].copy()
+    # Por seguridad elimina filas con cualquier NaN (no debería haber si el rango es correcto)
+    df_common = df_common.dropna(how="any")
+
+
+# 2) Estrategia 2: Imputación temporal (Kalman) por sitio
+#    - Aplica a todos los sitios, incluido AHI
+
+def imputar_estado_espacio(serie, show_warnings=False):
+    if serie.notna().sum() == 0:
+        return serie.copy(), None
+    i0, i1 = serie.first_valid_index(), serie.last_valid_index()
+    sub = serie.loc[i0:i1].astype(float)
+    try:
+        mod = UnobservedComponents(
+            sub,
+            level="local linear trend",
+            autoregressive=1,
+            mle_regression=False
+        )
+        res = mod.fit(disp=False, maxiter=200)
+        pred = res.predict()  # media suavizada
+    except Exception as e:
+        if show_warnings:
+            print(f"[{serie.name}] UCM falló; uso interpolación lineal. Motivo: {e}")
+        pred = sub.interpolate(limit_direction="both")
+
+    imputada = serie.copy()
+    na_mask = sub.isna()
+    imputada.loc[sub.index[na_mask]] = pred.loc[na_mask]
+    # Fuera de [i0,i1] (bordes) se deja NaN para evitar extrapolaciones largas
+    return imputada, None
+
+df_kalman = pd.DataFrame(index=df_t.index, columns=df_t.columns, dtype=float)
+for col in df_t.columns:
+    imp_col, _ = imputar_estado_espacio(df_t[col])
+    df_kalman[col] = imp_col
+
+# -----------------------------------------------------------
+# 3) Comparación visual 
+#    - Histogramas: Original vs Eliminación (sin AHI) vs Kalman
+# -----------------------------------------------------------
+cols_sitios = list(df_t.columns)
+ncols = 4
+nrows = 2
+nplots = min(len(cols_sitios), ncols)
+
+fig, axes = plt.subplots(nrows, ncols, figsize=(18, 8))
+axes = axes.flatten()
+
+for i, col in enumerate(cols_sitios[:nplots]):
+    orig = df_t[col].dropna()
+    elim_vals = df_common[col].dropna() if (col in df_common.columns) else pd.Series(dtype=float)
+    kalm_vals = df_kalman[col].dropna()
+
+    # Arriba: Original vs Eliminación (sin AHI, >=1900)
+    ax = axes[i]
+    if len(orig) > 0:
+        ax.hist(orig, bins=30, alpha=0.5, label="Original")
+    if len(elim_vals) > 0:
+        ax.hist(elim_vals, bins=30, alpha=0.5, label="Eliminación (común ≥1900, sin AHI)")
+    ax.set_title(f"{col}: Original vs Eliminación")
+    ax.legend(fontsize=8)
+
+    # Abajo: Original vs Kalman (toda la serie)
+    ax2 = axes[i + nplots]
+    if len(orig) > 0:
+        ax2.hist(orig, bins=30, alpha=0.5, label="Original")
+    if len(kalm_vals) > 0:
+        ax2.hist(kalm_vals, bins=30, alpha=0.5, label="Imputación Kalman")
+    ax2.set_title(f"{col}: Original vs Kalman")
+    ax2.legend(fontsize=8)
+
+plt.tight_layout(); plt.show()
+
+# -----------------------------------------------------------
+# 4) Series temporales de ejemplo (overlay)
+# -----------------------------------------------------------
+sitios_demo = cols_sitios[:3]  # elige 3–4 para ilustrar
+for col in sitios_demo:
+    plt.figure(figsize=(11,4))
+    plt.plot(df_t.index, df_t[col], marker="o", lw=1, label="Original (obs.)")
+    if col in df_common.columns and not df_common[col].empty:
+        plt.plot(df_common.index, df_common[col], lw=2, label="Eliminación (≥1900, sin AHI)")
+    plt.plot(df_kalman.index, df_kalman[col], lw=1.75, label="Imputación Kalman")
+    plt.title(f"Serie {col}: Original vs Eliminación vs Kalman")
+    plt.xlabel("Año"); plt.ylabel("δ13C VPDB (‰)")
+    plt.legend(); plt.tight_layout(); plt.show()
+
+# -----------------------------------------------------------
+# 5) Métricas para el reporte
+# -----------------------------------------------------------
+total_obs = df_t.size
+total_obs_no_nan = df_t.notna().sum().sum()
+elim_obs = df_common.size if not df_common.empty else 0
+print(f"Observaciones no NaN (original): {total_obs_no_nan}/{total_obs}")
+if not df_common.empty:
+    print(f"Observaciones tras eliminación (≥{START_YEAR}, sin {EXCLUDE_FOR_COMMON}): "
+          f"{elim_obs} ({elim_obs/total_obs:.1%} del total)")
+else:
+    print("No existe un período común sin faltantes bajo las restricciones (≥1900 y sin AHI).")
 
