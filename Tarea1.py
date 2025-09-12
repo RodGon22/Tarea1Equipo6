@@ -11,7 +11,7 @@ from scipy import stats
 #============Exploración de los datos===============
 
 #Ajustamos la ruta al archivo de datos .csv:
-file_path = "/Users/rodri/Downloads/data.csv"
+file_path = "/Users/aleborrego/Downloads/Tarea 1 Ciencia de Datos/data.csv"
 
 #Creamos un DataFrame con las características en filas y las muestras en columnas.
 df = pd.read_csv(file_path)
@@ -68,7 +68,7 @@ plt.ylabel('Valor')
 plt.title('Observaciones vs Año')
 plt.show()
 
-#Acegura que el año es numérico y crece de forma monótona
+#Asegura que el año es numérico y crece de forma monótona
 df_data['Año'] = pd.to_numeric(df_data['Año'], errors='coerce').astype('Int64')
 assert df_data['Año'].dropna().between(1500, 2100).all()
 assert df_data['Año'].is_monotonic_increasing
@@ -339,7 +339,7 @@ def Outliers(df):
         print("  No hay columnas numéricas para análisis de outliers")
     return df_clean
 
-#Ejecucucion de los Outliers
+#Ejecucion de los Outliers
 Outliers(df_dataNum)
 
 
@@ -555,3 +555,82 @@ if not df_common.empty:
 else:
     print("No existe un período común sin faltantes bajo las restricciones (≥1900 y sin AHI).")
 
+#============ Codificación y escalamiento ===============
+
+#Creamos un data frame con las columnas CAZ y REN
+df_caz_ren = df_data[['CAZ ', 'REN ']].copy()
+df_caz_ren.columns = ['CAZ', 'REN']  #Quitamos los espacios de los nombres para evitar errores futuros
+
+#Escalamos las columnas CAZ y REN  usando normalización min-max
+min_caz = df_caz_ren['CAZ'].min()
+max_caz = df_caz_ren['CAZ'].max()
+df_caz_ren['CAZ min_max'] = (df_caz_ren['CAZ'] - min_caz) / (max_caz - min_caz)
+
+min_ren = df_caz_ren['REN'].min()
+max_ren = df_caz_ren['REN'].max()
+df_caz_ren['REN min_max'] = (df_caz_ren['REN'] - min_ren) / (max_ren - min_ren)
+    
+#Escalamos las columnas CAZ y REN  usando estandarización z-score
+mean_caz = df_caz_ren['CAZ'].mean()
+stdv_caz = df_caz_ren['CAZ'].std()
+df_caz_ren['CAZ z-score'] = (df_caz_ren['CAZ'] - mean_caz) / (stdv_caz)
+
+mean_ren = df_caz_ren['REN'].mean()
+stdv_ren = df_caz_ren['REN'].std()
+df_caz_ren['REN z-score'] = (df_caz_ren['REN'] - mean_ren) / (stdv_ren)
+
+#Histograma
+sns.histplot(pd.to_numeric(df_caz_ren.iloc[:, 3].values.flatten(),
+                           errors='coerce'), kde=False, color="pink")
+plt.tight_layout()
+plt.show()
+
+sns.histplot(pd.to_numeric(df_caz_ren.iloc[:, 4].values.flatten(),
+                           errors='coerce'), kde=False, color="pink")
+plt.tight_layout()
+plt.show()
+    
+# Grafica compuesta
+
+#Box-plot para min-max
+fig, axes = plt.subplots(1, 2, figsize=(16, 10))
+
+sns.boxplot(pd.to_numeric(df_caz_ren.iloc[:, 2].values.flatten()),
+                          color="pink", fill=True, ax = axes[0])
+sns.boxplot(pd.to_numeric(df_caz_ren.iloc[:, 3].values.flatten()),
+                          color="pink", fill=True, ax = axes[1])
+plt.tight_layout()
+plt.show()
+
+#Box-plot para z-score
+fig, axes = plt.subplots(1, 2, figsize=(16, 10))
+
+sns.boxplot(pd.to_numeric(df_caz_ren.iloc[:, 4].values.flatten()),
+                          color="pink", fill=True, ax = axes[0])
+sns.boxplot(pd.to_numeric(df_caz_ren.iloc[:, 5].values.flatten()),
+                          color="pink", fill=True, ax = axes[1])
+
+plt.tight_layout()
+plt.show()
+
+#Histograma para min-max
+fig, axes = plt.subplots(1, 2, figsize=(16, 10))
+
+sns.histplot(pd.to_numeric(df_caz_ren.iloc[:, 2].values.flatten()),
+                          color="pink", fill=True, ax = axes[0])
+sns.histplot(pd.to_numeric(df_caz_ren.iloc[:, 3].values.flatten()),
+                          color="pink", fill=True, ax = axes[1])
+
+plt.tight_layout()
+plt.show()
+
+#Histograma para z-score
+fig, axes = plt.subplots(1, 2, figsize=(16, 10))
+
+sns.histplot(pd.to_numeric(df_caz_ren.iloc[:, 4].values.flatten()),
+                          color="pink", fill=True, ax = axes[0])
+sns.histplot(pd.to_numeric(df_caz_ren.iloc[:, 5].values.flatten()),
+                          color="pink", fill=True, ax = axes[1])
+
+plt.tight_layout()
+plt.show()
