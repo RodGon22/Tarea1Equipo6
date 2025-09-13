@@ -15,7 +15,7 @@ from scipy import stats
 
 #Ajustamos la ruta al archivo de datos .csv:
 #file_path = "/Users/aleborrego/Downloads/Tarea 1 Ciencia de Datos/data.csv"
-file_path = "/Users/rodri/Downloads/data.csv"
+file_path = "/Users/aleborrego/Downloads/Tarea 1 Ciencia de Datos/data.csv"
 
 #Creamos un DataFrame con las características en filas y las muestras en columnas.
 df = pd.read_csv(file_path)
@@ -708,37 +708,36 @@ site_names_onehot = pd.get_dummies(df_infoT['Site  name']).astype(int)
 species_onehot = pd.get_dummies(df_infoT['Species'].unique()).astype(int)
 
 #Escalamiento de datos
-#Creamos un data frame con las columnas CAZ y REN
-df_caz_vin = df_data[['CAZ ', 'VIN ']].copy()
-df_caz_vin.columns = ['CAZ', 'VIN']  #Quitamos los espacios de los nombres para evitar errores futuros
+#Creamos un data frame con las columnas SUW y WOB
+df_suw_wob= df_data[['SUW ', 'WOB ']].copy()
+df_suw_wob.columns = ['SUW', 'WOB']  #Quitamos los espacios de los nombres para evitar errores futuros
 
-#Escalamos las columnas CAZ y REN  usando normalización min-max
-min_caz = df_caz_vin['CAZ'].min()
-max_caz = df_caz_vin['CAZ'].max()
-df_caz_vin['CAZ min_max'] = (df_caz_vin['CAZ'] - min_caz) / (max_caz - min_caz)
+#Escalamos las columnas SUW y WOB  usando normalización min-max
+min_suw = df_suw_wob['SUW'].min()
+max_suw = df_suw_wob['SUW'].max()
+df_suw_wob['SUW min_max'] = (df_suw_wob['SUW'] - min_suw) / (max_suw - min_suw)
 
-min_vin = df_caz_vin['VIN'].min()
-max_vin = df_caz_vin['VIN'].max()
-df_caz_vin['VIN min_max'] = (df_caz_vin['VIN'] - min_vin) / (max_vin - min_vin)
+min_wob = df_suw_wob['WOB'].min()
+max_wob = df_suw_wob['WOB'].max()
+df_suw_wob['WOB min_max'] = (df_suw_wob['WOB'] - min_wob) / (max_wob - min_wob)
     
-#Escalamos las columnas CAZ y REN  usando estandarización z-score
-mean_caz = df_caz_vin['CAZ'].mean()
-stdv_caz = df_caz_vin['CAZ'].std()
-df_caz_vin['CAZ z-score'] = (df_caz_vin['CAZ'] - mean_caz) / (stdv_caz)
+#Escalamos las columnas SUW y WOB  usando estandarización z-score
+mean_suw = df_suw_wob['SUW'].mean()
+stdv_suw = df_suw_wob['SUW'].std()
+df_suw_wob['SUW z-score'] = (df_suw_wob['SUW'] - mean_suw) / (stdv_suw)
 
-mean_vin = df_caz_vin['VIN'].mean()
-stdv_vin = df_caz_vin['VIN'].std()
-df_caz_vin['VIN z-score'] = (df_caz_vin['VIN'] - mean_vin) / (stdv_vin)
+mean_wob = df_suw_wob['WOB'].mean()
+stdv_wob = df_suw_wob['WOB'].std()
+df_suw_wob['WOB z-score'] = (df_suw_wob['WOB'] - mean_wob) / (stdv_wob)
 
-    
 # Grafica compuesta
 
 #Box-plot para min-max
 fig, axes = plt.subplots(1, 2, figsize=(16, 10))
 
-sns.boxplot(pd.to_numeric(df_caz_vin.iloc[:, 2].values.flatten()),
+sns.boxplot(pd.to_numeric(df_suw_wob.iloc[:, 2].values.flatten()),
                           color="pink", fill=True, ax = axes[0])
-sns.boxplot(pd.to_numeric(df_caz_vin.iloc[:, 3].values.flatten()),
+sns.boxplot(pd.to_numeric(df_suw_wob.iloc[:, 3].values.flatten()),
                           color="pink", fill=True, ax = axes[1])
 plt.tight_layout()
 plt.show()
@@ -746,9 +745,9 @@ plt.show()
 #Box-plot para z-score
 fig, axes = plt.subplots(1, 2, figsize=(16, 10))
 
-sns.boxplot(pd.to_numeric(df_caz_vin.iloc[:, 4].values.flatten()),
+sns.boxplot(pd.to_numeric(df_suw_wob.iloc[:, 4].values.flatten()),
                           color="pink", fill=True, ax = axes[0])
-sns.boxplot(pd.to_numeric(df_caz_vin.iloc[:, 5].values.flatten()),
+sns.boxplot(pd.to_numeric(df_suw_wob.iloc[:, 5].values.flatten()),
                           color="pink", fill=True, ax = axes[1])
 
 plt.tight_layout()
@@ -757,9 +756,9 @@ plt.show()
 #Histograma para min-max
 fig, axes = plt.subplots(1, 2, figsize=(16, 10))
 
-sns.histplot(pd.to_numeric(df_caz_vin.iloc[:, 2].values.flatten()),
+sns.histplot(pd.to_numeric(df_suw_wob.iloc[:, 2].values.flatten()),
                           color="pink", fill=True, ax = axes[0])
-sns.histplot(pd.to_numeric(df_caz_vin.iloc[:, 3].values.flatten()),
+sns.histplot(pd.to_numeric(df_suw_wob.iloc[:, 3].values.flatten()),
                           color="pink", fill=True, ax = axes[1])
 
 plt.tight_layout()
@@ -768,9 +767,9 @@ plt.show()
 #Histograma para z-score
 fig, axes = plt.subplots(1, 2, figsize=(16, 10))
 
-sns.histplot(pd.to_numeric(df_caz_vin.iloc[:, 4].values.flatten()),
+sns.histplot(pd.to_numeric(df_suw_wob.iloc[:, 4].values.flatten()),
                           color="pink", fill=True, ax = axes[0])
-sns.histplot(pd.to_numeric(df_caz_vin.iloc[:, 5].values.flatten()),
+sns.histplot(pd.to_numeric(df_suw_wob.iloc[:, 5].values.flatten()),
                           color="pink", fill=True, ax = axes[1])
 
 plt.tight_layout()
