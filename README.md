@@ -26,5 +26,10 @@ El objetivo principal fue realizar un proceso completo de **limpieza, exploraci�
 -  **Imputación Temporal con Modelo en Espacio de Estados + Suavizado de Kalman** 
 
 
+### 3. Codificación y Escalamiento
+- **One-Hot Encoding** 
+- **Normalización Min-Max** y **Estandarización Z-Score**.
+
+
 
 **Nota:** Los datos originales de ISONET son propiedad de los autores Schleser, G. H., et al. (2023) y deben citarse apropiadamente. Este repositorio contiene solo el análisis realizado sobre ellos.
