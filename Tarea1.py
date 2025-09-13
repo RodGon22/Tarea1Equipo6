@@ -16,7 +16,7 @@ file_path = "/Users/aleborrego/Downloads/Tarea 1 Ciencia de Datos/data.csv"
 #Creamos un DataFrame con las características en filas y las muestras en columnas.
 df = pd.read_csv(file_path)
 
-#Separamos del DataFrame las filas que contienen la info de los datos
+#Separamos del DataFrame las filas que contienen la info de los datos y la transponemos
 df_info = df.drop(df.index[8:415])
 #Calculamos el número de años en los que se tomaron registros de datos por sitio 
 df_info.loc['Años registrados'] = (1 + df_info.iloc[6, 1:].astype(int) - df_info.iloc[5, 1:].astype(int))
@@ -29,7 +29,7 @@ df_data = df_data.reset_index(drop=True)
 #Cambiamos el nombre de la columna 'Site Code' para que sea más claro que se trata del año de la medición
 df_data = df_data.rename(columns={'Site Code': 'Año'})
 
-#Resumen breve de los datos
+#Resumen estadístico de los datos
 df_data.describe()
 
 #Más gráficas considerando todos los datos
@@ -89,25 +89,6 @@ plt.xlabel('Año'); plt.ylabel('δ13C (‰ vs VPDB)')
 plt.title('δ13C por año — sitios con mayor cobertura')
 plt.legend(); plt.grid(alpha=0.3); plt.show()
 
-#Gráfica de dispersión para distinguir y analizar menos sitios
-#plt.figure(figsize=(10, 6))
-
-#for col in df_data.columns[1:6]:
-#    plt.scatter(df_data['Año'], pd.to_numeric(df_data[col], errors='coerce'),
-#             marker='o', label = col)
-
-#plt.xlabel('Año')
-#plt.ylabel('Valor')
-#plt.title('Todas las variables vs Año')
-#plt.legend()
-#plt.show()
-
-
-    
-#Boxplot
-#sns.boxplot(pd.to_numeric(df_data.iloc[:, 1:].values.flatten(),errors='coerce'),
-#                          color="pink", fill=True)
-#plt.show()
 
 #===========================#===========================#===========================
 #===========================Valores Faltantes==========================
@@ -397,7 +378,6 @@ ambiguedades(df)
 # =========================================================
 
 # Opcional (solo para el mapa de faltantes al inicio/fin):
-import seaborn as sns
 
 # Modelos de espacio de estados:
 from statsmodels.tsa.statespace.structural import UnobservedComponents
@@ -557,35 +537,45 @@ else:
 
 #============ Codificación y escalamiento ===============
 
+#Transformación de variables categóricas
+df_infoT=df_info.T #Transponemos el date frame de la información
+df_infoT.columns = df_infoT.iloc[0] #Asigna la primera fila como encabezados de las columna
+info = df_infoT[1:].reset_index(drop=True)  # Eliminamos primera fila y reiniciamos el índice
+
+#Aplicamos codificación one-hot para trabajar con var.cat. si se necesita. p.ej: sitios y especies
+site_names_onehot = pd.get_dummies(df_infoT['Site  name']).astype(int)
+species_onehot = pd.get_dummies(df_infoT['Species'].unique()).astype(int)
+
+#Escalamiento de datos
 #Creamos un data frame con las columnas CAZ y REN
-df_caz_ren = df_data[['CAZ ', 'REN ']].copy()
-df_caz_ren.columns = ['CAZ', 'REN']  #Quitamos los espacios de los nombres para evitar errores futuros
+df_caz_vin = df_data[['CAZ ', 'VIN ']].copy()
+df_caz_vin.columns = ['CAZ', 'VIN']  #Quitamos los espacios de los nombres para evitar errores futuros
 
 #Escalamos las columnas CAZ y REN  usando normalización min-max
-min_caz = df_caz_ren['CAZ'].min()
-max_caz = df_caz_ren['CAZ'].max()
-df_caz_ren['CAZ min_max'] = (df_caz_ren['CAZ'] - min_caz) / (max_caz - min_caz)
+min_caz = df_caz_vin['CAZ'].min()
+max_caz = df_caz_vin['CAZ'].max()
+df_caz_vin['CAZ min_max'] = (df_caz_vin['CAZ'] - min_caz) / (max_caz - min_caz)
 
-min_ren = df_caz_ren['REN'].min()
-max_ren = df_caz_ren['REN'].max()
-df_caz_ren['REN min_max'] = (df_caz_ren['REN'] - min_ren) / (max_ren - min_ren)
+min_vin = df_caz_vin['VIN'].min()
+max_vin = df_caz_vin['VIN'].max()
+df_caz_vin['VIN min_max'] = (df_caz_vin['VIN'] - min_vin) / (max_vin - min_vin)
     
 #Escalamos las columnas CAZ y REN  usando estandarización z-score
-mean_caz = df_caz_ren['CAZ'].mean()
-stdv_caz = df_caz_ren['CAZ'].std()
-df_caz_ren['CAZ z-score'] = (df_caz_ren['CAZ'] - mean_caz) / (stdv_caz)
+mean_caz = df_caz_vin['CAZ'].mean()
+stdv_caz = df_caz_vin['CAZ'].std()
+df_caz_vin['CAZ z-score'] = (df_caz_vin['CAZ'] - mean_caz) / (stdv_caz)
 
-mean_ren = df_caz_ren['REN'].mean()
-stdv_ren = df_caz_ren['REN'].std()
-df_caz_ren['REN z-score'] = (df_caz_ren['REN'] - mean_ren) / (stdv_ren)
+mean_vin = df_caz_vin['VIN'].mean()
+stdv_vin = df_caz_vin['VIN'].std()
+df_caz_vin['VIN z-score'] = (df_caz_vin['VIN'] - mean_vin) / (stdv_vin)
 
 #Histograma
-sns.histplot(pd.to_numeric(df_caz_ren.iloc[:, 3].values.flatten(),
+sns.histplot(pd.to_numeric(df_caz_vin.iloc[:, 3].values.flatten(),
                            errors='coerce'), kde=False, color="pink")
 plt.tight_layout()
 plt.show()
 
-sns.histplot(pd.to_numeric(df_caz_ren.iloc[:, 4].values.flatten(),
+sns.histplot(pd.to_numeric(df_caz_vin.iloc[:, 4].values.flatten(),
                            errors='coerce'), kde=False, color="pink")
 plt.tight_layout()
 plt.show()
@@ -595,9 +585,9 @@ plt.show()
 #Box-plot para min-max
 fig, axes = plt.subplots(1, 2, figsize=(16, 10))
 
-sns.boxplot(pd.to_numeric(df_caz_ren.iloc[:, 2].values.flatten()),
+sns.boxplot(pd.to_numeric(df_caz_vin.iloc[:, 2].values.flatten()),
                           color="pink", fill=True, ax = axes[0])
-sns.boxplot(pd.to_numeric(df_caz_ren.iloc[:, 3].values.flatten()),
+sns.boxplot(pd.to_numeric(df_caz_vin.iloc[:, 3].values.flatten()),
                           color="pink", fill=True, ax = axes[1])
 plt.tight_layout()
 plt.show()
@@ -605,9 +595,9 @@ plt.show()
 #Box-plot para z-score
 fig, axes = plt.subplots(1, 2, figsize=(16, 10))
 
-sns.boxplot(pd.to_numeric(df_caz_ren.iloc[:, 4].values.flatten()),
+sns.boxplot(pd.to_numeric(df_caz_vin.iloc[:, 4].values.flatten()),
                           color="pink", fill=True, ax = axes[0])
-sns.boxplot(pd.to_numeric(df_caz_ren.iloc[:, 5].values.flatten()),
+sns.boxplot(pd.to_numeric(df_caz_vin.iloc[:, 5].values.flatten()),
                           color="pink", fill=True, ax = axes[1])
 
 plt.tight_layout()
@@ -616,9 +606,9 @@ plt.show()
 #Histograma para min-max
 fig, axes = plt.subplots(1, 2, figsize=(16, 10))
 
-sns.histplot(pd.to_numeric(df_caz_ren.iloc[:, 2].values.flatten()),
+sns.histplot(pd.to_numeric(df_caz_vin.iloc[:, 2].values.flatten()),
                           color="pink", fill=True, ax = axes[0])
-sns.histplot(pd.to_numeric(df_caz_ren.iloc[:, 3].values.flatten()),
+sns.histplot(pd.to_numeric(df_caz_vin.iloc[:, 3].values.flatten()),
                           color="pink", fill=True, ax = axes[1])
 
 plt.tight_layout()
@@ -627,9 +617,9 @@ plt.show()
 #Histograma para z-score
 fig, axes = plt.subplots(1, 2, figsize=(16, 10))
 
-sns.histplot(pd.to_numeric(df_caz_ren.iloc[:, 4].values.flatten()),
+sns.histplot(pd.to_numeric(df_caz_vin.iloc[:, 4].values.flatten()),
                           color="pink", fill=True, ax = axes[0])
-sns.histplot(pd.to_numeric(df_caz_ren.iloc[:, 5].values.flatten()),
+sns.histplot(pd.to_numeric(df_caz_vin.iloc[:, 5].values.flatten()),
                           color="pink", fill=True, ax = axes[1])
 
 plt.tight_layout()
