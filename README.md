@@ -30,6 +30,21 @@ El objetivo principal fue realizar un proceso completo de **limpieza, exploraci�
 - **One-Hot Encoding** 
 - **Normalización Min-Max** y **Estandarización Z-Score**.
 
+### 4. Visualización
+- Mapas de calor de datos faltantes.
+- Histogramas.
+- Gráficos de series de tiempo antes y después de la imputación.
+- Gráficos Q-Q para pruebas de normalidad.
+
+## Tecnologías:
+
+- **Lenguajes:** Python (Pandas, NumPy, SciPy, Statsmodels) y/o R.
+- **Visualización:** Matplotlib, Seaborn, Plotly.
+- **Control de Versiones:** Git / GitHub.
+- **Documentación:** LaTeX .
+
+
+
 
 
 **Nota:** Los datos originales de ISONET son propiedad de los autores Schleser, G. H., et al. (2023) y deben citarse apropiadamente. Este repositorio contiene solo el análisis realizado sobre ellos.
