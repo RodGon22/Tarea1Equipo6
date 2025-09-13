@@ -43,6 +43,13 @@ El objetivo principal fue realizar un proceso completo de **limpieza, exploraci√
 - **Control de Versiones:** Git / GitHub.
 - **Documentaci√≥n:** LaTeX .
 
+## Referencias
+
+- Durbin, J. and Koopman, S. J. (2012). *Time series analysis by state space methods*. Oxford university press.
+- Schleser, G. H., et al. (2023). Stable carbon isotope ratios of tree-ring cellulose from the site network of the eu-project 'isonet'.
+- Wickham, H., & Grolemund, G. (2017). *R for data science*. O'Reilly Media.
+
+---
 
 
 
