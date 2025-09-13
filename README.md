@@ -21,6 +21,10 @@ El objetivo principal fue realizar un proceso completo de **limpieza, exploraci�
 - **Datos Faltantes**
 - **Valores Atípicos (Outliers):** Se utilizaron los métodos **IQR** y **Z-Score**.
 
+### 2. Manejo y Mantenimiento de los Datos
+-  **Eliminación por Período Común**
+-  **Imputación Temporal con Modelo en Espacio de Estados + Suavizado de Kalman** 
+
 
 
 **Nota:** Los datos originales de ISONET son propiedad de los autores Schleser, G. H., et al. (2023) y deben citarse apropiadamente. Este repositorio contiene solo el análisis realizado sobre ellos.
