@@ -14,3 +14,7 @@ El objetivo principal fue realizar un proceso completo de **limpieza, exploraci�
 
 **Profesor:** Dr. Marco Antonio Aquino López  
 **Institución:** Centro de Investigación en Matemáticas (CIMAT) A.C.
+
+## Estrucutura del repositorio
+
+├── data/ # Directorio para los datos (raw & processed)
