@@ -1,6 +1,9 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-''' TAREA 1. CIENCIA DE DATOS. ALE, LUZ Y RODRI'''
+''' 
+TAREA 1. 
+INTRODUCCION A CIENCIA DE DATOS. 
+ALE BL, LUZ SM Y RODRI GS
+12 de septiembre del 2025
+'''
 
 import pandas as pd
 import numpy as np
@@ -11,7 +14,8 @@ from scipy import stats
 #============Exploración de los datos===============
 
 #Ajustamos la ruta al archivo de datos .csv:
-file_path = "/Users/aleborrego/Downloads/Tarea 1 Ciencia de Datos/data.csv"
+#file_path = "/Users/aleborrego/Downloads/Tarea 1 Ciencia de Datos/data.csv"
+file_path = "/Users/rodri/Downloads/data.csv"
 
 #Creamos un DataFrame con las características en filas y las muestras en columnas.
 df = pd.read_csv(file_path)
@@ -205,8 +209,23 @@ def valores_faltantes(df):
 #Ejecucucion
 valores_faltantes(df_data)
 
+# 1)Otra  faltantes
+
+#indexar por Año
+df_t = df_data.copy()
+if df_t.columns[0].lower() in ["año", "ano", "year"]:
+    df_t = df_t.rename(columns={df_t.columns[0]: "Año"})
+df_t = df_t.set_index("Año").sort_index()
+
+plt.figure(figsize=(12, 4))
+sns.heatmap(df_t.isna(), cbar=False)
+plt.title("Mapa de faltantes por sitio y año (NaN)")
+plt.xlabel("Sitio"); plt.ylabel("Año")
+plt.tight_layout(); plt.show()
+
 
 #===========Posibles Outliers===================
+#La siguiente funcion se volvi+o innecesaria
 def convertir_columnas_numericas(df):
     """
     Funcion para convertir columnas que deberían ser numéricas pero estan como objetos
@@ -341,11 +360,6 @@ def ambiguedades(df):
                 print(f"\n  {col}:")
                 print(f"    Valores únicos: {len(unique_values)}")
                 
-                # Mostrar solo los primeros 10 valores únicos si hay muchos
-#                if len(unique_values) <= 10:
-#                    print(f"    Valores: {sorted(unique_values)}")
-#                else:
-#                    print(f"    Valores (primeros 10): {sorted(unique_values)[:10]}")
                 
                 # Detectar posibles duplicados por diferencias de formato
                 lower_values = [str(x).lower().strip() for x in unique_values if pd.notna(x)]
@@ -385,24 +399,6 @@ from statsmodels.tools.sm_exceptions import ConvergenceWarning
 import warnings
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
-
-#indexar por Año
-df_t = df_data.copy()
-if df_t.columns[0].lower() in ["año", "ano", "year"]:
-    df_t = df_t.rename(columns={df_t.columns[0]: "Año"})
-df_t = df_t.set_index("Año").sort_index()
-
-
-# 1) Exploración inicial de faltantes (opcional visual)
-
-print("Porcentaje de faltantes por sitio (%)")
-print((df_t.isna().mean()*100).sort_values())
-
-plt.figure(figsize=(12, 4))
-sns.heatmap(df_t.isna(), cbar=False)
-plt.title("Mapa de faltantes por sitio y año (NaN)")
-plt.xlabel("Sitio"); plt.ylabel("Año")
-plt.tight_layout(); plt.show()
 
 # 1) Estrategia 1: Eliminación por período común (sin AHI)
 #    - Excluye AHI del cálculo del período común
@@ -535,6 +531,171 @@ if not df_common.empty:
 else:
     print("No existe un período común sin faltantes bajo las restricciones (≥1900 y sin AHI).")
 
+###############============================
+#======================================Visualización con imputacion de Kalman
+#======================================Relación entre dos variables
+#======================================Posibles Nuevos Outliers por la imputación
+
+
+def visualizaciones_exploratorias(df_original, df_imputado, sitio_ejemplo):
+    """    
+    Parameters:
+    df_original: DataFrame con datos originales (con NaN)
+    df_imputado: DataFrame con datos imputados (sin NaN)
+    sitio_ejemplo: Sitio específico para analizar
+    """
+    
+    # Asegurar que el índice sea numérico (años)
+    if not pd.api.types.is_numeric_dtype(df_original.index):
+        df_original = df_original.reset_index()
+        if 'Año' in df_original.columns:
+            df_original = df_original.set_index('Año')
+    
+    if not pd.api.types.is_numeric_dtype(df_imputado.index):
+        df_imputado = df_imputado.reset_index()
+        if 'Año' in df_imputado.columns:
+            df_imputado = df_imputado.set_index('Año')
+    
+    #Distribucion de variable continua Normal
+    plt.figure(figsize=(12, 4))
+    
+    # Datos originales vs imputados
+    datos_originales = df_original[sitio_ejemplo].dropna()
+    datos_imputados = df_imputado[sitio_ejemplo] #solo elegimos uno para comparar
+    
+    plt.subplot(1, 2, 1)
+    sns.histplot(datos_originales, kde=True, color='skyblue', 
+                 alpha=0.7, label='Original', stat='density')
+    sns.histplot(datos_imputados, kde=True, color='coral', 
+                 alpha=0.7, label='Imputado', stat='density')
+    plt.title(f'Distribución de {sitio_ejemplo}\nOriginal vs Imputado')
+    plt.xlabel('δ¹³C (‰ VPDB)')
+    plt.ylabel('Densidad')
+    plt.legend()
+    
+    # QQ-plot para normalidad
+    plt.subplot(1, 2, 2)
+    stats.probplot(datos_imputados.dropna(), dist="norm", plot=plt)
+    plt.title(f'QQ-Plot de {sitio_ejemplo}\n(Test de normalidad)')
+    plt.tight_layout()
+#    plt.savefig("QQplotREN.jpg",dpi=300)
+    plt.show()
+        
+    #  Relacion lineal entre la variable de interés con la de mayor correlacion
+    # (hay que añadir datos impitados)
+    correlaciones = df_imputado.corr().abs()
+    sitio1 = sitio_ejemplo
+    
+    # Elegir sitio con más correlacionado
+    correlaciones_sitio = correlaciones[sitio1].drop(sitio1)
+    sitio2 = correlaciones_sitio.idxmax()
+    
+    # FILTRAR DATOS
+    mask_valid = df_imputado[sitio1].notna() & df_imputado[sitio2].notna()
+    df_clean = df_imputado.loc[mask_valid, [sitio1, sitio2]]
+    
+    plt.figure(figsize=(10, 6))
+    
+    # Datos originales (puntos sólidos)
+    mask_original = df_original[sitio1].notna() & df_original[sitio2].notna()
+    plt.scatter(df_original.loc[mask_original, sitio1], 
+                df_original.loc[mask_original, sitio2], 
+                alpha=0.7, color='blue', label='Datos originales', s=30)
+    
+    # Datos imputados (puntos transparentes)
+    plt.scatter(df_imputado[sitio1], df_imputado[sitio2], 
+                alpha=0.3, color='red', label='Datos imputados', s=20)
+    
+    # Línea de tendencia
+    if len(df_clean) > 1:  # Se necesita al menos 2 puntos para ajustar, y cachar errores
+        try:
+            z = np.polyfit(df_clean[sitio1], df_clean[sitio2], 1)
+            p = np.poly1d(z)
+            
+            # Generar puntos para la línea de tendencia
+            x_range = np.linspace(df_clean[sitio1].min(), df_clean[sitio1].max(), 100)
+            plt.plot(x_range, p(x_range), color='black', linestyle='--', alpha=0.8, label='Tendencia lineal')
+            
+        except (LinAlgError, ValueError) as e:
+            print(f"Advertencia: No se pudo ajustar línea de tendencia: {e}")
+            # Mostrar mensaje en el gráfico
+            plt.text(0.5, 0.9, 'No se pudo calcular tendencia lineal', 
+                    transform=plt.gca().transAxes, ha='center', color='red')
+    else:
+        print("Adv: No hay suficientes datos")
+    
+    plt.xlabel(f'{sitio1} (δ¹³C ‰)')
+    plt.ylabel(f'{sitio2} (δ¹³C ‰)')
+    plt.title(f'Relación entre {sitio1} y {sitio2}\n(Coef. correlación: {correlaciones_sitio.max():.3f})')
+    plt.legend()
+    plt.grid(alpha=0.3)
+#    plt.savefig("MasCorreREN.jpg",dpi=300)
+    plt.show()
+        
+    # Nuevos posibles Outliers Y V.E.
+    plt.figure(figsize=(15, 5))
+    
+    # Boxplot por sitio (primeros 6 sitios)
+    sitios_analizar = df_imputado.columns[:6]  # Primeros 6 sitios
+    
+    # Filtrar solo columnas con datos
+    sitios_analizar = [col for col in sitios_analizar if df_imputado[col].notna().sum() > 0]
+    
+    plt.subplot(1, 2, 1)
+    data_plot = [df_imputado[col].dropna() for col in sitios_analizar]
+    plt.boxplot(data_plot, labels=sitios_analizar)
+    plt.xticks(rotation=45)
+    plt.title('Boxplot por sitio (detectando outliers)')
+    plt.ylabel('δ¹³C (‰ VPDB)')
+    
+    # Z-scores para detectar outliers extremos
+    plt.subplot(1, 2, 2)
+    
+    # Calcular outliers por sitio individualmente
+    outlier_counts = []
+    for col in sitios_analizar:
+        col_data = df_imputado[col].dropna()
+        if len(col_data) > 0:
+            z_scores = np.abs(stats.zscore(col_data))
+            outlier_count = (z_scores > 3).sum()
+        else:
+            outlier_count = 0
+        outlier_counts.append(outlier_count)
+    
+    plt.bar(sitios_analizar, outlier_counts, color='orange', alpha=0.7)
+    plt.xticks(rotation=45)
+    plt.title('Número de outliers por sitio (Z-score > 3)')
+    plt.ylabel('Cantidad de outliers')
+    
+    # Añadir valores en las barras
+    for i, count in enumerate(outlier_counts):
+        plt.text(i, count + 0.1, str(count), ha='center', va='bottom')
+    
+    plt.tight_layout()
+#    plt.savefig("OutliersREN.jpg",dpi=300)
+    plt.show()
+        
+    # Estadísticas adicionales de outliers
+    print("Resumen de outliers por sitio (Z-score > 3):")
+    for sitio, count in zip(sitios_analizar, outlier_counts):
+        total_datos = df_imputado[sitio].notna().sum()
+        porcentaje = (count / total_datos) * 100 if total_datos > 0 else 0
+        print(f"  {sitio}: {count} outliers ({porcentaje:.1f}%)")
+
+# Ejecutar (usando df_t como original y df_kalman como imputado)
+
+# Verificar que los DataFrames no estén vacíos
+if df_kalman is not None and not df_kalman.empty:
+    visualizaciones_exploratorias(df_t, df_kalman, sitio_ejemplo='REN ')
+else:
+    print("Error: df_kalman está vacío o no definido")
+    print("Usando datos originales para visualización (sin imputación)")
+    visualizaciones_exploratorias(df_t, df_t, sitio_ejemplo='REN ')
+
+
+
+
+#=========================================================
 #============ Codificación y escalamiento ===============
 
 #Transformación de variables categóricas
@@ -569,16 +730,6 @@ mean_vin = df_caz_vin['VIN'].mean()
 stdv_vin = df_caz_vin['VIN'].std()
 df_caz_vin['VIN z-score'] = (df_caz_vin['VIN'] - mean_vin) / (stdv_vin)
 
-#Histograma
-sns.histplot(pd.to_numeric(df_caz_vin.iloc[:, 3].values.flatten(),
-                           errors='coerce'), kde=False, color="pink")
-plt.tight_layout()
-plt.show()
-
-sns.histplot(pd.to_numeric(df_caz_vin.iloc[:, 4].values.flatten(),
-                           errors='coerce'), kde=False, color="pink")
-plt.tight_layout()
-plt.show()
     
 # Grafica compuesta
 
